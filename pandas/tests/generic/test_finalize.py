@@ -78,6 +78,8 @@ _all_methods = [
     (pd.DataFrame, frame_data, operator.methodcaller("__getitem__", ["A"])),
     (pd.DataFrame, frame_data, operator.methodcaller("__getitem__", np.array([True]))),
     (pd.DataFrame, ({("A", "a"): [1]},), operator.methodcaller("__getitem__", ["A"])),
+    (pd.DataFrame, frame_data, operator.methodcaller("__setitem__"), ["A", [2]]),
+    (pd.DataFrame, frame_data, operator.methodcaller("__setitem__"), ["B", [2]]),
     (pd.DataFrame, frame_data, operator.methodcaller("query", "A == 1")),
     (pd.DataFrame, frame_data, operator.methodcaller("eval", "A + 1", engine="python")),
     (pd.DataFrame, frame_data, operator.methodcaller("select_dtypes", include="int")),
@@ -387,6 +389,67 @@ def test_finalize_called(ndframe_method):
     result = method(ndframe)
 
     assert result.attrs == {"a": 1}
+
+
+@not_implemented_mark
+def test_finalize_called_set_column():
+    series = pd.Series([0, 1])
+    df = pd.DataFrame({"A": [2, 3], "B": [3, 4]})
+
+    df_attrs = {"A": 5}
+    df_series_attrs = {"A": 6}
+    series_attrs = {"C": 7}
+
+    df.attrs = df_attrs
+    df["A"].attrs = df_series_attrs
+    assert df.attrs == df_attrs
+    assert df["A"].attrs == df_series_attrs
+
+    # insert series as new col
+    series.attrs = series_attrs
+    df["C"] = series
+    assert df.attrs == df_attrs
+    assert df["B"].attrs == {}
+    assert df["C"].attrs == series_attrs
+
+    # overwrite existing col with series
+    df["A"] = series
+    assert df["A"].attrs == series_attrs
+    assert df.attrs == df_attrs
+
+    # change values of existing col
+    df["A"] = [6, 7]
+    assert df["A"].attrs == series_attrs
+
+    # overwrite old col with values
+    df.isetitem(0, [8, 9])
+    assert df["A"].attrs == series_attrs
+
+    # overwrite fresh col with series
+    # TODO do we really want to take the attrs from the value series when we reassign
+    #  the series?
+    #  yes, we do, the since the series attrs are really series specific, if one wants
+    #  to have global rules for the dataframe that depend on a fixed hierarchy of
+    #  columns, one should put these into the df.attrs
+    df.isetitem(1, series)
+    assert df["B"].attrs == series_attrs
+
+    # TODO What do we want to do with series that have empty attrs, I would say
+    #  one would want the existing
+    #    attrs of the existing column to be propagated
+    #    old: hasAttrs, new: noAttrs => keep old attrs
+    #                   new: hasAttrs, len<len(old) => keep old attrs
+    #                                  len=len(old) => maybe defensively like concat
+    #    old: noAttrs, new: noAttrs => no attrs
+    #                  new: hasAttrs => take new attrs, actually don't when only a
+    #                                   subset of the values are reassigned, one should
+    #                                   assign the attrs manually for only assigning a
+    #                                   part of the values is usually part of some
+    #                                   function and generally the values are the focus
+    #
+    #
+    #      However, when the value series has no attrs, we generally do not want to
+    #      overwrite the existing attrs
 
 
 @not_implemented_mark

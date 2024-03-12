@@ -66,7 +66,7 @@ fi
 if [[ -z "$CHECK" || "$CHECK" == "docstrings" ]]; then
 
     # Run multiple calls of the validation script in a single python python process
-    # Each group of parameters is separated with '--'
+    # Each group of parameters is separated with --
     # This way module compiles, imports and processed source files can be cached, among other things
     PARAMETERS=(--format=actions --errors=EX01,EX03,EX04,GL01,GL02,GL03,GL04,GL05,GL06,GL07,GL09,GL10,PD01,PR03,PR04,PR05,PR06,PR08,PR09,PR10,RT01,RT02,RT04,RT05,SA02,SA03,SA04,SA05,SS01,SS02,SS03,SS04,SS05,SS06)
     #####
@@ -1607,8 +1607,9 @@ if [[ -z "$CHECK" || "$CHECK" == "docstrings" ]]; then
         pandas.tseries.offsets.YearEnd.name\
         pandas.util.hash_array\
         pandas.util.hash_pandas_object # There should be no backslash in the final line, please keep this comment in the last ignored function
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
+    )
+    $BASE_DIR/scripts/validate_docstrings.py ${PARAMETERS[@]}
+    RET=$(($RET + $?)) ;
 fi
 
 ### DOCUMENTATION NOTEBOOKS ###

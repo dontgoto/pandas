@@ -1608,6 +1608,11 @@ pandas.tseries.offsets.YearEnd.name,\
 pandas.util.hash_array,\
 pandas.util.hash_pandas_object # There should be no backslash in the final line, please keep this comment in the last ignored function
     )
+    PARAMETERS2=(--format=actions --errors=SA01 \
+    --for_error_ignore_functions PR01 \
+        pandas.tseries.offsets.YearEnd.kwds,\
+        pandas.tseries.offsets.YearEnd.name --for_error_ignore_functions SA01 \
+         pandas.tseries.offsets.YearEnd.kwds,pandas.tseries.offsets.YearEnd.name)
     $BASE_DIR/scripts/validate_docstrings.py ${PARAMETERS[@]}
     RET=$(($RET + $?)) ;
 fi

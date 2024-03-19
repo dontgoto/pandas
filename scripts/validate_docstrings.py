@@ -270,66 +270,82 @@ class PandasDocstring(Validator):
         return "array_like" in self.raw_doc
 
 
-def pandas_validate(func_name: str):
+def pandas_validate(func_names: str | list[str]) -> dict[str, dict]:
     """
     Call the numpydoc validation, and add the errors specific to pandas.
 
     Parameters
     ----------
-    func_name : str
-        Name of the object of the docstring to validate.
+    func_names : list[str]
+        The names of the objects of the docstrings to validate.
 
     Returns
     -------
-    dict
-        Information about the docstring and the errors found.
+    dict[str, dict]
+        For each function, information about the docstring and the errors found.
     """
-    func_obj = Validator._load_obj(func_name)
-    # Some objects are instances, e.g. IndexSlice, which numpydoc can't validate
-    doc_obj = get_doc_object(func_obj, doc=func_obj.__doc__)
-    doc = PandasDocstring(func_name, doc_obj)
-    result = validate(doc_obj)
-    mentioned_errs = doc.mentioned_private_classes
-    if mentioned_errs:
-        result["errors"].append(
-            pandas_error("GL04", mentioned_private_classes=", ".join(mentioned_errs))
-        )
+    if isinstance(func_names, str):
+        func_names = [func_names]
 
-    if doc.see_also:
-        result["errors"].extend(
-            pandas_error(
-                "SA05",
-                reference_name=rel_name,
-                right_reference=rel_name[len("pandas."):],
-            )
-            for rel_name in doc.see_also
-            if rel_name.startswith("pandas.")
-        )
+    docs_to_results = {}
+    # build dict of docs and validation results
+    for func_name in func_names:
+        func_obj = Validator._load_obj(func_name)
+        # Some objects are instances, e.g. IndexSlice, which numpydoc can't validate
+        doc_obj = get_doc_object(func_obj, doc=func_obj.__doc__)
+        doc = PandasDocstring(func_name, doc_obj)
+        result = validate(doc_obj)
+        docs_to_results[doc] = result
 
-    result["examples_errs"] = ""
-    if doc.examples:
-        for err_code, err_message, line_num, col_num in validate_pep8(doc)[doc]:
+    # add errors not from examples to the result
+    for doc, result in docs_to_results.items():
+        mentioned_errs = doc.mentioned_private_classes
+        if mentioned_errs:
             result["errors"].append(
                 pandas_error(
-                    "EX03",
-                    error_code=err_code,
-                    error_message=err_message,
-                    line_number=line_num,
-                    col_number=col_num,
-                )
+                    "GL04",
+                    mentioned_private_classes=", ".join(mentioned_errs))
             )
-        examples_source_code = "".join(doc.examples_source_code)
-        result["errors"].extend(
-            pandas_error("EX04", imported_library=wrong_import)
-            for wrong_import in ("numpy", "pandas")
-            if f"import {wrong_import}" in examples_source_code
-        )
 
-    if doc.non_hyphenated_array_like():
-        result["errors"].append(pandas_error("PD01"))
+        if doc.see_also:
+            see_also_prefix_errors = [
+                pandas_error("SA05",
+                             reference_name=rel_name,
+                             right_reference=rel_name[len("pandas."):],
+                             )
+                for rel_name in doc.see_also
+                if rel_name.startswith("pandas.")
+            ]
+            result["errors"].extend(see_also_prefix_errors)
+
+        if doc.non_hyphenated_array_like():
+            result["errors"].append(pandas_error("PD01"))
+
+    pep8_results = validate_pep8(list(docs_to_results.keys()))
+
+    for doc, pep8_errors in pep8_results.items():
+        result = docs_to_results[doc]
+        pep8_pandas_errors = [
+            pandas_error(
+                "EX03",
+                error_code=err_code,
+                error_message=err_message,
+                line_number=line_num,
+                col_number=col_num,
+            ) for err_code, err_message, line_num, col_num in pep8_errors
+        ]
+        result["errors"].extend(pep8_pandas_errors)
+        examples_source_code = "".join(doc.examples_source_code)
+        import_errors = [pandas_error("EX04", imported_library=wrong_import)
+                         for wrong_import in ("numpy", "pandas")
+                         if f"import {wrong_import}" in examples_source_code]
+        result["errors"].extend(import_errors)
 
     plt.close("all")
-    return result
+    validation_results = {doc.func_name: result
+                          for doc, result
+                          in docs_to_results.items()}
+    return validation_results
 
 
 def validate_all(prefix, ignore_deprecated=False):
@@ -357,7 +373,7 @@ def validate_all(prefix, ignore_deprecated=False):
     for func_name, _, section, subsection in get_all_api_items():
         if prefix and not func_name.startswith(prefix):
             continue
-        doc_info = pandas_validate(func_name)
+        doc_info = pandas_validate(func_name)[func_name]
         if ignore_deprecated and doc_info["deprecated"]:
             continue
         result[func_name] = doc_info
@@ -437,7 +453,7 @@ def print_validate_one_results(func_name: str,
 
         return f"\n{full_line}\n{title_line}\n{full_line}\n\n"
 
-    result = pandas_validate(func_name)
+    result = pandas_validate(func_name)[func_name]
 
     result["errors"] = [(code, message) for code, message in result["errors"]
                         if code not in ignore_errors.get(None, set())]

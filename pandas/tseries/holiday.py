@@ -39,10 +39,9 @@ def next_monday(dt: datetime) -> datetime:
     If holiday falls on Saturday, use following Monday instead;
     if holiday falls on Sunday, use Monday instead
     """
-    if dt.weekday() == 5:
-        return dt + timedelta(2)
-    elif dt.weekday() == 6:
-        return dt + timedelta(1)
+    day = dt.weekday()
+    if day > 4:
+        return dt + timedelta(7 - day)
     return dt
 
 
@@ -54,7 +53,7 @@ def next_monday_or_tuesday(dt: datetime) -> datetime:
     (because Monday is already taken by adjacent holiday on the day before)
     """
     dow = dt.weekday()
-    if dow in (5, 6):
+    if dow > 4:
         return dt + timedelta(2)
     if dow == 0:
         return dt + timedelta(1)
@@ -65,10 +64,8 @@ def previous_friday(dt: datetime) -> datetime:
     """
     If holiday falls on Saturday or Sunday, use previous Friday instead.
     """
-    if dt.weekday() == 5:
-        return dt - timedelta(1)
-    elif dt.weekday() == 6:
-        return dt - timedelta(2)
+    if dt.weekday() > 4:
+        return dt - timedelta(dt.weekday() - 4)
     return dt
 
 
@@ -87,10 +84,9 @@ def weekend_to_monday(dt: datetime) -> datetime:
     use day thereafter (Monday) instead.
     Needed for holidays such as Christmas observation in Europe
     """
-    if dt.weekday() == 6:
-        return dt + timedelta(1)
-    elif dt.weekday() == 5:
-        return dt + timedelta(2)
+    dow = dt.weekday()
+    if dow > 4:
+        return dt + timedelta(7 - dow)
     return dt
 
 
@@ -110,10 +106,10 @@ def next_workday(dt: datetime) -> datetime:
     """
     returns next weekday used for observances
     """
-    dt += timedelta(days=1)
-    while dt.weekday() > 4:
+    dow = dt.weekday()
+    if dow > 4:
         # Mon-Fri are 0-4
-        dt += timedelta(days=1)
+        dt += timedelta(days=(7 - dow))
     return dt
 
 
@@ -121,10 +117,10 @@ def previous_workday(dt: datetime) -> datetime:
     """
     returns previous weekday used for observances
     """
-    dt -= timedelta(days=1)
-    while dt.weekday() > 4:
+    dow = dt.weekday()
+    if dow > 4:
         # Mon-Fri are 0-4
-        dt -= timedelta(days=1)
+        dt -= timedelta(dow - 4)
     return dt
 
 
@@ -511,20 +507,12 @@ class AbstractHolidayCalendar(metaclass=HolidayCalendarMetaClass):
         other : AbstractHolidayCalendar
           instance/subclass or array of Holiday objects
         """
-        try:
-            other = other.rules
-        except AttributeError:
-            pass
-
+        other = getattr(other, "rules", other)
         if not isinstance(other, list):
             other = [other]
         other_holidays = {holiday.name: holiday for holiday in other}
 
-        try:
-            base = base.rules
-        except AttributeError:
-            pass
-
+        base = getattr(base, "rules", base)
         if not isinstance(base, list):
             base = [base]
         base_holidays = {holiday.name: holiday for holiday in base}

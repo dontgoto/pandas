@@ -118,9 +118,8 @@ class TestValidator:
         return base_path
 
     def test_bad_class(self, capsys) -> None:
-        errors = validate_docstrings.pandas_validate(
-            self._import_path(klass="BadDocstrings")
-        )["errors"]
+        func_name = self._import_path(klass="BadDocstrings")
+        errors = validate_docstrings.pandas_validate(func_name)[func_name]["errors"]
         assert isinstance(errors, list)
         assert errors
 
@@ -193,9 +192,8 @@ class TestValidator:
         ],
     )
     def test_bad_docstrings(self, capsys, klass, func, msgs) -> None:
-        result = validate_docstrings.pandas_validate(
-            self._import_path(klass=klass, func=func)
-        )
+        func_name = self._import_path(klass=klass, func=func)
+        result = validate_docstrings.pandas_validate(func_name)[func_name]
         for msg in msgs:
             assert msg in " ".join([err[1] for err in result["errors"]])
 
@@ -204,15 +202,17 @@ class TestValidator:
             validate_docstrings,
             "pandas_validate",
             lambda func_name: {
-                "docstring": "docstring1",
-                "errors": [
-                    ("ER01", "err desc"),
-                    ("ER02", "err desc"),
-                    ("ER03", "err desc"),
-                ],
-                "warnings": [],
-                "examples_errors": "",
-                "deprecated": True,
+                func_name : {
+                    "docstring": "docstring1",
+                    "errors": [
+                        ("ER01", "err desc"),
+                        ("ER02", "err desc"),
+                        ("ER03", "err desc"),
+                    ],
+                    "warnings": [],
+                    "examples_errors": "",
+                    "deprecated": True,
+                }
             },
         )
         result = validate_docstrings.validate_all(prefix=None, ignore_deprecated=True)
@@ -223,17 +223,19 @@ class TestValidator:
             validate_docstrings,
             "pandas_validate",
             lambda func_name: {
-                "docstring": "docstring1",
-                "errors": [
-                    ("ER01", "err desc"),
-                    ("ER02", "err desc"),
-                    ("ER03", "err desc")
-                ],
-                "warnings": [],
-                "examples_errors": "",
-                "deprecated": True,
-                "file": "file1",
-                "file_line": "file_line1"
+                func_name : {
+                    "docstring": "docstring1",
+                    "errors": [
+                        ("ER01", "err desc"),
+                        ("ER02", "err desc"),
+                        ("ER03", "err desc")
+                    ],
+                    "warnings": [],
+                    "examples_errors": "",
+                    "deprecated": True,
+                    "file": "file1",
+                    "file_line": "file_line1"
+                }
             },
         )
         monkeypatch.setattr(
@@ -385,13 +387,15 @@ class TestMainFunction:
             validate_docstrings,
             "pandas_validate",
             lambda func_name: {
-                "docstring": "docstring1",
-                "errors": [
-                    ("ER01", "err desc"),
-                    ("ER02", "err desc"),
-                    ("ER03", "err desc"),
-                ],
-                "examples_errs": "",
+                func_name : {
+                    "docstring": "docstring1",
+                    "errors":
+                        [ ("ER01", "err desc"),
+                          ("ER02", "err desc"),
+                          ("ER03", "err desc"),
+                          ],
+                    "examples_errs": "",
+                }
             },
         )
         exit_status = validate_docstrings.main(

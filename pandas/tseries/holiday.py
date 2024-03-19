@@ -173,7 +173,7 @@ class Holiday:
             computes when holiday is given a pandas Timestamp
         days_of_week:
             provide a tuple of days e.g  (0,1,2,3,) for Monday Through Thursday
-            Monday=0,..,Sunday=6
+            Monday=0,...,Sunday=6
 
         Examples
         --------
@@ -240,8 +240,8 @@ class Holiday:
         if self.observance is not None:
             info += f"observance={self.observance}"
 
-        repr = f"Holiday: {self.name} ({info})"
-        return repr
+        repr_str = f"Holiday: {self.name} ({info})"
+        return repr_str
 
     def dates(
         self, start_date, end_date, return_name: bool = False

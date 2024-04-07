@@ -622,6 +622,18 @@ class TestSeriesConstructors:
         expected = Series([np.nan, np.nan, np.nan])
         tm.assert_series_equal(result, expected)
 
+    def test_constructor_maskedarray_maxint(self):
+        # Check numpy masked arrays with ints that overflow float64 digits (53 bits)
+        # from #58173
+        unmasked = np.array([1649900760361600113, -1649900760361600113, 0])
+        data = ma.masked_array(unmasked, mask=[False, False, True], dtype=np.int64)
+        result = Series(data, dtype="Int64")
+        expected = unmasked[:-1]
+        # TODO to_numpy is also not safe when used with float-overflowing ints
+        #      though numpy masked arrays themselves have no problem with such values
+        result = np.array(result.values[:-1])
+        tm.assert_numpy_array_equal(result, expected)
+
     def test_series_ctor_plus_datetimeindex(self):
         rng = date_range("20090415", "20090519", freq="B")
         data = {k: 1 for k in rng}

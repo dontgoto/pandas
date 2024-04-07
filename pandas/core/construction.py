@@ -8,6 +8,7 @@ These should not depend on core.internals.
 from __future__ import annotations
 
 from collections.abc import Sequence
+import decimal
 from typing import (
     TYPE_CHECKING,
     Optional,
@@ -43,6 +44,7 @@ from pandas.core.dtypes.cast import (
     maybe_cast_to_integer_array,
     maybe_convert_platform,
     maybe_infer_to_datetimelike,
+    maybe_promote,
 )
 from pandas.core.dtypes.common import (
     is_list_like,
@@ -496,10 +498,27 @@ def sanitize_masked_array(data: ma.MaskedArray) -> np.ndarray:
     Convert numpy MaskedArray to ensure mask is softened.
     """
     mask = ma.getmaskarray(data)
-    data = data.copy()
     if mask.any():
+        dtype, fill_value = maybe_promote(data.dtype, np.nan)
+        dtype = cast(np.dtype, dtype)
+        # float64 can represent up to 53 bits
+        if isinstance(data.dtype, np.dtypes.Int64DType) and np.any(data > 2**52):
+            with decimal.localcontext() as ctx:
+                # 20 digits max in int64
+                ctx.prec = 21
+                data = np.array(
+                    [
+                        decimal.Decimal(int(value)) if not masked else fill_value
+                        for value, masked in zip(data, mask)
+                    ],
+                    dtype=object,
+                )
+                dtype = object
+        data = ma.asarray(data.astype(dtype, copy=True))
         data.soften_mask()  # set hardmask False if it was True
-
+        data[mask] = fill_value
+    else:
+        data = data.copy()
     return data
 
 

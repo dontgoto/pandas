@@ -159,6 +159,9 @@ def _coerce_to_data_and_mask(
             mask = mask.copy()
         return values, mask, dtype, inferred_type
 
+    if isinstance(values, np.ma.MaskedArray):
+        mask = values.mask
+
     original = values
     if not copy:
         values = np.asarray(values)
